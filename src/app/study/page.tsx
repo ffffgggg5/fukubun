@@ -167,6 +167,76 @@ function HistoryList({ history }: { history: HistoryEntry[] }) {
   );
 }
 
+function QuickMemoForm({ defaultFront }: { defaultFront?: string }) {
+  const [open, setOpen] = useState(false);
+  const [front, setFront] = useState(defaultFront ?? "");
+  const [back, setBack] = useState("");
+  const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="self-start text-sm text-neutral-500 underline decoration-dotted hover:text-neutral-700 dark:hover:text-neutral-300"
+      >
+        + 間違えたのでメモを追加
+      </button>
+    );
+  }
+
+  async function handleSave() {
+    if (!front.trim() || !back.trim()) return;
+    setStatus("saving");
+    await fetch("/api/memo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ front, back }),
+    });
+    setFront(defaultFront ?? "");
+    setBack("");
+    setStatus("saved");
+    setTimeout(() => setStatus("idle"), 1200);
+  }
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-dashed border-neutral-300 p-3 dark:border-neutral-700">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium">メモを追加</span>
+        <button
+          onClick={() => setOpen(false)}
+          className="text-xs text-neutral-500 underline"
+        >
+          閉じる
+        </button>
+      </div>
+      <label className="flex flex-col gap-1">
+        <span className="text-xs text-neutral-500">表（問い）</span>
+        <textarea
+          value={front}
+          onChange={(e) => setFront(e.target.value)}
+          className="min-h-16 rounded-lg border border-neutral-300 p-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+        />
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className="text-xs text-neutral-500">裏（答え・気づき）</span>
+        <textarea
+          value={back}
+          onChange={(e) => setBack(e.target.value)}
+          className="min-h-16 rounded-lg border border-neutral-300 p-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          placeholder="間違えた理由や覚えておきたいポイント"
+        />
+      </label>
+      <button
+        onClick={handleSave}
+        disabled={status === "saving" || !front.trim() || !back.trim()}
+        className="self-start rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
+      >
+        {status === "saved" ? "登録しました ✓" : "登録する"}
+      </button>
+    </div>
+  );
+}
+
 function JudgeButtons({ onJudge, disabled }: { onJudge: (correct: boolean) => void; disabled: boolean }) {
   return (
     <div className="flex gap-3">
@@ -245,6 +315,7 @@ function SentenceCard({
             <p className="mt-2 text-lg">{answerText}</p>
           </div>
           <HistoryList history={history} />
+          <QuickMemoForm defaultFront={prompt} />
           <JudgeButtons onJudge={onJudge} disabled={submitting} />
         </>
       )}
@@ -301,6 +372,7 @@ function MemoCard({
             <p className="mt-2 text-lg">{item.back}</p>
           </div>
           <HistoryList history={history} />
+          <QuickMemoForm defaultFront={item.front} />
           <JudgeButtons onJudge={onJudge} disabled={submitting} />
         </>
       )}
