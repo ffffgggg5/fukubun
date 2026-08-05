@@ -9,7 +9,7 @@ interface Args {
   swap: boolean;
 }
 
-function parseArgs(argv: string[]): Args {
+function parseArgs(argv: string[]): Args | null {
   const positional: string[] = [];
   let sheet: string | undefined;
   let skipHeader = false;
@@ -37,7 +37,8 @@ function parseArgs(argv: string[]): Args {
     console.error(
       "  --swap         A列が和訳・B列が英文の場合に指定（デフォルトはA列=英文, B列=和訳）"
     );
-    process.exit(1);
+    process.exitCode = 1;
+    return null;
   }
 
   return { filePath: positional[0], sheet, skipHeader, swap };
@@ -45,10 +46,14 @@ function parseArgs(argv: string[]): Args {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  if (!args) return;
+
   const filePath = path.resolve(process.cwd(), args.filePath);
+  console.log(`読み込み中: ${filePath}`);
 
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(filePath);
+  console.log(`シート数: ${workbook.worksheets.length} (${workbook.worksheets.map((s) => s.name).join(", ")})`);
 
   const worksheet = args.sheet
     ? workbook.getWorksheet(args.sheet)
@@ -56,8 +61,11 @@ async function main() {
 
   if (!worksheet) {
     console.error(`シートが見つかりませんでした: ${args.sheet ?? "(1枚目)"}`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
+
+  console.log(`対象シート: ${worksheet.name}, 行数: ${worksheet.rowCount}`);
 
   let imported = 0;
   let skipped = 0;
@@ -92,5 +100,5 @@ async function main() {
 
 main().catch((error) => {
   console.error("インポート中にエラーが発生しました:", error);
-  process.exit(1);
+  process.exitCode = 1;
 });
